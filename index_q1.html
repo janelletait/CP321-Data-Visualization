@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+  </head>
+  <body>
+    <div id="viz"></div>
+
+    <script>
+
+var svg = d3.select("#viz")   //create a canvas with dimensions 500 by 500 and translate it so there are margins at the top and left sides
+  .append("svg")
+    .attr("width", 500)
+    .attr("height", 500)
+  .append("g")
+    .attr("transform","translate(30,20)");
+
+var studentData = [
+          {Student: 1, marks: 6},
+          {Student: 2, marks: 100}, 
+          {Student: 3, marks: 90}, 
+          {Student: 4, marks: 55}, 
+          {Student: 5, marks: 83}, 
+          {Student: 6, marks: 88}, 
+          {Student: 7, marks: 91}, 
+          {Student: 8, marks: 92}, 
+          {Student: 9, marks: 67}, 
+          {Student: 10, marks: 73}];
+
+  studentData = studentData.sort((a,b) => d3.ascending(a.marks, b.marks));  //sort the data in ascending order by marks
+
+  var y_scale = d3.scaleBand()  //create y axis with scaleBand so that the bars are labelled not necessarily in numerical order
+    .range([450, 0])
+    .domain(studentData.map(function (d) {return d.Student}));
+
+  svg.append("g") 
+    .call(d3.axisLeft(y_scale))
+
+  var x_scale = d3.scaleLinear()  //create x axis
+    .domain([0, 100])
+    .range([ 0, 450]);
+
+  svg.append("g")
+    .attr("transform", "translate(0, 450)")
+    .call(d3.axisBottom(x_scale).tickSizeInner([-450]))   //refer to tickSizeInner for the x axis so we get ticks that extend across the graph
+
+  svg.append("g")   //add the Marks label to the x axis
+    .attr('transform', 'translate(210, 475)')
+    .append('text')
+    .text('Marks');
+
+  svg.append("g")   //add the Student Number label to the y axis
+    .attr('transform', 'translate(-20, 270)')
+    .append('text')
+    .attr('transform', 'rotate(-90)')
+    .text('Student Number');
+
+  svg.selectAll("rect")   //add all data points as bars on the graph
+    .data(studentData)
+    .enter()
+    .append("rect")
+    .attr("x", x_scale(0) )
+    .attr("y", function(d) { return y_scale(d.Student) + 10; }) //I had to add 10 to the y value because of spacing issues
+    .attr("width", function(d) { return x_scale(d.marks); })
+    .attr("height", 35)
+    .attr("fill", "#0099ff")
+
+      function exitData() {
+        d3.select("svg").selectAll("rect").data([{Student: 2, marks: 100}, //we want to remove the 3 lowest grades, so call exit and remove on all records except for the 3 lowest
+          {Student: 3, marks: 90},  
+          {Student: 5, marks: 83}, 
+          {Student: 6, marks: 88}, 
+          {Student: 7, marks: 91}, 
+          {Student: 8, marks: 92},  
+          {Student: 10, marks: 73}], function(d) { return(d.Student); })
+          .exit().remove(); 
+      } 
+
+
+      function enterData() {  
+        d3.select("svg")
+        .selectAll("rect") 
+          .data([{Student: 2, marks: 100},  //we want to add the missing bars back so I've added them to the end of the list of data
+          {Student: 3, marks: 90},  
+          {Student: 5, marks: 83}, 
+          {Student: 6, marks: 88}, 
+          {Student: 7, marks: 91}, 
+          {Student: 8, marks: 92},  
+          {Student: 10, marks: 73},
+          {Student: 1, marks: 6},
+          {Student: 4, marks: 55}, 
+          {Student: 9, marks: 67}], function(d) { return(d.Student); })  
+          .enter()       
+          .append("rect")
+            .attr("width", function(d) { return x_scale(d.marks); })
+            .attr("height", 35)
+            .attr("x", x_scale(6.75))
+            .attr("y", function(d) { return y_scale(d.Student) + 28;})
+            .attr("fill", "#0099ff")
+      }
+
+    </script>
+        <button onclick="exitData()">Remove Lowest 3 Grades</button>  
+        <button onclick="enterData()">See All Grades</button>  
+  </body>
+</html>
