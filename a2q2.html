@@ -1,0 +1,269 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <style>
+    </style>
+  </head>
+  <body>
+    <div id="viz">
+      <svg style="width:950px;height:850px;" ></svg>
+    </div>
+    <script>
+      d3.json("../data/task2.json", viz); //read in the data from the json file
+      
+      function viz(data) {
+
+        //var color = d3.scaleOrdinal()
+          //.domain(["Videos", "Audio", "Document", "Misc"])
+          //.range(["#e41a1c","#377eb8","#4daf4a","#984ea3"])
+
+        var color = d3.scaleOrdinal()
+          .domain(["mp4", "mp3", "pdf", "doc", "avi", "xls", "wav", "py", "ppt", "js", "c", "hi"])
+          .range(d3.schemeSet3)
+        
+        var depthScale = d3.scaleOrdinal()
+          .range(["#5EAFC6", "#FE9922", "#93c464", "#75739F"]);
+        
+        var nestedData= d3.nest()
+          .key(d => d.Folder)
+          .entries(data.root);
+        
+        var packableData = {id: "All Data", values: nestedData};
+        
+        var root = d3.hierarchy(packableData, d => d.values)
+          .sum(d => d.size);
+        
+        var treemapLayout = d3.treemap()
+          .size([800,800])
+          .paddingTop(25)
+          .paddingRight(7)
+          .paddingInner(3)
+        
+        treemapLayout(root);
+        
+        d3.select("svg")
+          .selectAll("rect")
+          //.data(root.descendants())
+          .data(root.descendants().filter(function(d){return d.depth==2}))
+          .enter()
+          .append("rect")
+            .attr("x", d => d.x0)
+            .attr("y", d => d.y0)
+            .attr("width", d => d.x1 - d.x0)
+            .attr("height", d => d.y1 - d.y0)
+            .attr('fill', d => color(d.data.filename.split('.')[1]))
+            .style("stroke", "black");
+
+
+        d3.select("svg")
+          .selectAll("text")
+          .data(root.descendants().filter(function(d){return d.depth == 1}))
+          .enter()
+          .append("text")
+            .attr("x", function(d){ return d.x0})
+            .attr("y", function(d){ return d.y0+15})
+            .text(d => d.data.key)
+            .attr("font-size", "15px")
+            .attr("fill", "black");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 0)
+          .attr("y", 14)    // +20 to adjust position (lower)
+          .text("Contents of The Root Folder")
+          .attr("font-size", "19px")
+          .attr("fill",  "black" )
+
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",130)
+          .attr("r", 6)
+          .style("fill", "#8dd3c7")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",160)
+          .attr("r", 6)
+          .style("fill", "#ffffb3")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",190)
+          .attr("r", 6)
+          .style("fill", "#bebada")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",220)
+          .attr("r", 6)
+          .style("fill", "#fb8072")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",250)
+          .attr("r", 6)
+          .style("fill", "#80b1d3")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",280)
+          .attr("r", 6)
+          .style("fill", "#fdb462")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",310)
+          .attr("r", 6)
+          .style("fill", "#b3de69")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",340)
+          .attr("r", 6)
+          .style("fill", "#fccde5")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",370)
+          .attr("r", 6)
+          .style("fill", "#d9d9d9")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",400)
+          .attr("r", 6)
+          .style("fill", "#bc80bd")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("circle")
+          .attr("cx",850)
+          .attr("cy",430)
+          .attr("r", 6)
+          .style("fill", "#ccebc5")
+          .style("stroke", "black");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 847)
+          .attr("y", 100)
+          .text("Legend:")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 130)
+          .text(".mp4")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 160)
+          .text(".mp3")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 190)
+          .text(".pdf")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 220)
+          .text(".doc")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 250)
+          .text(".avi")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 280)
+          .text(".xls")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 310)
+          .text(".wav")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 340)
+          .text(".py")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 370)
+          .text(".ppt")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 400)
+          .text(".js")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+
+        d3.select("svg")
+          .append("text")
+          .attr("x", 870)
+          .attr("y", 430)
+          .text(".c")
+          .style("font-size", "15px")
+          .attr("alignment-baseline","middle");
+      }
+    </script>
+  </body>
+</html>
