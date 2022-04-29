@@ -1,0 +1,739 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.13.0/d3-legend.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v0.3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.min.js"></script>
+    <style>
+      path.countries {
+        stroke-width: 1;
+        stroke: #75739F;
+        fill: lightgrey;
+      }
+      circle.cities {
+        stroke-width: 1;
+        stroke: #4F442B;
+        fill: #FCBC34;
+      }
+      circle.centroid {
+        fill: #75739F;
+        pointer-events: none;
+      }
+      rect.bbox {
+        fill: none;
+        stroke-dasharray: 5 5;
+        stroke: #75739F;
+        stroke-width: 2;
+        pointer-events: none;
+      }
+      path.graticule {
+        fill: none;
+        stroke-width: 1;
+        stroke: #9A8B7A;
+      }
+      path.graticule.outline {
+        stroke: #9A8B7A;
+      }
+
+      path.merged {
+        fill: #9A8B7A;
+        stroke: #4F442B;
+        stroke-width: 2px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <p>
+      Select a Visualization:
+      <select id="metrics">
+        <option value="CurrentWeekCases" selected="selected">Absolute number of cases in current week</option>
+        <option value="PreviousWeekCases">Absolute number of cases in previous week</option>
+        <option value="WeeklyCaseChange">Case increase or reduction since previous week</option>
+        <option value="CurrentWeekCasesPerMill">Top and bottom 5 countries by cases per 1M</option>
+      </select>
+    </p>
+
+    <button onclick="buttonUpdateNorth()">View North America</button>  
+    <button onclick="buttonUpdateSouth()">View South America</button>
+    <button onclick="buttonUpdateBoth()">View Both Americas</button>
+
+    <div id="controls">
+    </div>
+    <div id="viz">
+      <svg style="width:575px;height:800px;" ></svg>
+    </div>
+    <script>
+
+      var PromiseWrapper = (xhr, d) => new Promise(resolve => xhr(d, (p) => resolve(p)));
+
+      const map = {};
+      var viewStatus = 3; //3 is both, 2 is south and 1 is north
+
+      Promise
+        .all([
+          PromiseWrapper(d3.json, "../data/world.geojson"),
+          PromiseWrapper(d3.csv, "../data/covid_south_america_weekly_trend.csv"),
+          PromiseWrapper(d3.csv, "../data/north_america_covid_weekly_trend.csv"),
+          PromiseWrapper(d3.csv, "../data/both_americas_covid_weekly_trend.csv")
+        ])
+        .then(function([countries, south, north, both]){
+          // save in a global context and remove antarctic.
+          map.countries = countries.features;
+          map.south_data = south;
+          map.north_data = north;
+          map.both_data = both;
+          map.metric = d3.select("#metrics").property("value");
+
+          createMap();
+
+          d3.select("#metrics").on("change",createMap);
+
+        });
+
+        
+      
+      function createMap() {
+        console.log("hi");
+        console.log(map.countries);
+        d3.select("svg").selectAll("path").remove();
+        d3.select("svg").selectAll("g.legend").remove();
+        console.log(map.countries);
+
+        var metric = d3.select("#metrics").property("value");
+
+          if(viewStatus == 3){
+            var aProjection = d3.geoMercator()
+              .scale(180)
+              .translate([600, 550]);
+          }
+
+          if(viewStatus == 2){
+              var aProjection = d3.geoMercator()
+              .scale(300)
+              .translate([630, 250]);
+          }
+
+          if(viewStatus == 1){
+              var aProjection = d3.geoMercator()
+              .scale(200)
+              .translate([650, 700]);
+          }
+
+
+
+
+        if(metric == "CurrentWeekCases"){
+
+          const logScale = d3.scaleLinear()
+            .domain([0, 300000])
+          const colorScale = d3.scaleSequential(
+              (d) => d3.interpolateReds(logScale(d))
+            ) 
+
+
+          
+          var geoPath = d3.geoPath().projection(aProjection);
+          
+          d3.select("svg").selectAll("path")
+            .data(map.countries)
+            .enter()
+            .append("path")
+              .attr("class","country")
+              .attr("d", geoPath)
+              .attr("class", "countries")
+              .style("fill", "#D3D3D3") //make everything grey first
+              .style("fill", function(d) { 
+
+                var jsonCountryName = d.properties.name;
+
+                if(viewStatus == 3){ //both
+
+                for (var i = 0; i < map.both_data.length; i++) {
+
+                  var csvCountryName = map.both_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.both_data[i][metric]);
+                }
+              }
+            }
+
+              if(viewStatus == 2){ //south
+
+                for (var i = 0; i < map.south_data.length; i++) {
+
+                  var csvCountryName = map.south_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.south_data[i][metric]);
+                }
+              }
+            }
+
+            if(viewStatus == 1){ //north
+
+                for (var i = 0; i < map.north_data.length; i++) {
+
+                  var csvCountryName = map.north_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.north_data[i][metric]);
+                }
+              }
+            }
+
+
+              });
+
+
+          var legend = d3.legendColor()
+            .scale(colorScale)
+            .ascending(false)
+            .cells([0,30000,60000,90000,120000,150000,180000,210000,240000,270000,300000])
+            .shapePadding(5)
+            .title("Cases in thousands:")
+            .labels(["0","30","60","90","120","150","180","210","240","270","300"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend);
+
+
+          }
+
+
+
+
+        if(metric == "PreviousWeekCases"){ 
+
+          const logScale = d3.scaleLinear()
+            .domain([0, 318000])
+          const colorScale = d3.scaleSequential(
+              (d) => d3.interpolateReds(logScale(d))
+            ) 
+
+          //var aProjection = d3.geoMercator()
+            //.scale(180)
+            //.translate([600, 550]);
+          
+          var geoPath = d3.geoPath().projection(aProjection);
+          
+          d3.select("svg").selectAll("path")
+            .data(map.countries)
+            .enter()
+            .append("path")
+              .attr("d", geoPath)
+              .attr("class", "countries")
+              .style("fill", "#D3D3D3") //make everything grey first
+              .style("fill", function(d) { 
+
+                var jsonCountryName = d.properties.name;
+
+            if(viewStatus == 3){
+
+                for (var i = 0; i < map.both_data.length; i++) {
+
+                  var csvCountryName = map.both_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.both_data[i][metric]);
+                }
+              }
+            }
+
+
+              if(viewStatus == 2){ //south
+
+                for (var i = 0; i < map.south_data.length; i++) {
+
+                  var csvCountryName = map.south_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.south_data[i][metric]);
+                }
+              }
+            }
+
+
+            if(viewStatus == 1){ //north
+
+                for (var i = 0; i < map.north_data.length; i++) {
+
+                  var csvCountryName = map.north_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    //console.log("jsonCountryName " + jsonCountryName);
+                    //console.log("csvCountryName " + csvCountryName);
+                    //console.log("cases: " + both[i][metric]);
+                    return colorScale(map.north_data[i][metric]);
+                }
+              }
+            }
+
+
+
+
+              });
+
+          var legend = d3.legendColor()
+            .scale(colorScale)
+            .ascending(false)
+            .cells([0,30000,60000,90000,120000,150000,180000,210000,240000,270000,300000,330000])
+            .shapePadding(5)
+            .title("Cases in thousands:")
+            .labels(["0","30","60","90","120","150","180","210","240","270","300","330"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend);
+            
+          }
+
+
+          if(metric == "WeeklyCaseChange"){
+
+            const change = [];
+            var legend_array = [];
+
+            if(viewStatus == 1){
+              for(let i = 0; i < map.north_data.length; i++){
+                change.push(parseFloat(map.north_data[i][metric]));
+              }
+            }
+
+            if(viewStatus == 2){
+              for(let i = 0; i < map.south_data.length; i++){
+                change.push(parseFloat(map.south_data[i][metric]));
+              }
+            }
+
+            if(viewStatus == 3){
+              for(let i = 0; i < map.both_data.length; i++){
+                change.push(parseFloat(map.both_data[i][metric]));
+              }
+            }
+
+            console.log("change array for: " + change);
+            console.log("change(max) = " + d3.max(change));
+
+            console.log("change(min) = " + d3.min(change));
+
+
+            const logScale = d3.scalePow()
+              .exponent(0.5)
+              .domain([0, d3.min(change)])
+            const decreasingColorScale = d3.scaleSequential(
+              (d) => d3.interpolateBlues(logScale(d))
+              )
+
+
+            const logScale2 = d3.scalePow()
+              .exponent(0.5)
+              .domain([0, d3.max(change)])
+            const increasingColorScale = d3.scaleSequential(
+              (d) => d3.interpolateReds(logScale2(d))
+              )
+
+          var geoPath = d3.geoPath().projection(aProjection);
+          
+          d3.select("svg").selectAll("path")
+            .data(map.countries)
+            .enter()
+            .append("path")
+              .attr("d", geoPath)
+              .attr("class", "countries")
+              .style("fill", "#D3D3D3") //make everything grey first
+              .style("fill", function(d) { 
+
+              var jsonCountryName = d.properties.name;
+
+            if(viewStatus == 3){ //both
+                for (var i = 0; i < map.both_data.length; i++) {
+                  var csvCountryName = map.both_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    if(change[i] >= 0){
+                      return increasingColorScale(change[i]);
+                    }
+
+                    if(change[i] < 0){
+                      return decreasingColorScale(change[i]);
+                    }
+                    
+                }
+
+              }
+
+              legend_array1 = [1, -25, -50, -75, -100];
+              label_array2 = [0, parseInt(d3.max(change)/4), parseInt(d3.max(change)/2), parseInt(d3.max(change)/4)*3, d3.max(change)];
+              label_array1 = [1, 25, 50, 75, 100];
+
+            }
+
+
+              if(viewStatus == 2){ //south
+                for (var i = 0; i < map.south_data.length; i++) {
+                  var csvCountryName = map.south_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    if(change[i] >= 0){
+                      return increasingColorScale(change[i]);
+                    }
+
+                    if(change[i] < 0){
+                      return decreasingColorScale(change[i]);
+                    }
+                    
+                }
+              }
+              legend_array1 = [1, -25, -50, -75, -100];
+              label_array1 = [1, 25, 50, 75, 100];
+              label_array2 = [0, parseInt(d3.max(change)/4), parseInt(d3.max(change)/2), parseInt(d3.max(change)/4)*3, d3.max(change)];
+            }
+
+
+            if(viewStatus == 1){ //north
+                for (var i = 0; i < map.north_data.length; i++) {
+                  var csvCountryName = map.north_data[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    if(change[i] >= 0){
+                      return increasingColorScale(change[i]);
+                    }
+
+                    if(change[i] < 0){
+                      return decreasingColorScale(change[i]);
+                    }
+                    
+                }
+              }
+              legend_array1 = [1, -25, -50, -75, -100];
+              label_array1 = [1, 25, 50, 75, 100];
+              label_array2 = [0, parseInt(d3.max(change)/4), parseInt(d3.max(change)/2), parseInt(d3.max(change)/4)*3, d3.max(change)];
+            }
+        });
+
+          var legend = d3.legendColor()
+            .scale(increasingColorScale)
+            .ascending(true)
+            .cells(label_array2)
+            .shapePadding(5)
+            .title("% Increase in cases:")
+            .labels(label_array2)
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend);
+
+
+          var legend2 = d3.legendColor()
+            .scale(decreasingColorScale)
+            .ascending(false)
+            .cells(legend_array1)
+            .shapePadding(5)
+            .title("% Decrease in Cases:")
+            .labels(label_array1)
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,160)")
+            .call(legend2);
+
+          }
+
+
+          if(metric == "CurrentWeekCasesPerMill"){
+
+            let casepm_data = {};
+            let topfive = {};
+            let bottomfive = {};
+
+            /*
+            const logScale1 = d3.scaleThreshold()
+              .domain([3500, 4000, 5000, 26000])
+            const northbottomColorScale = d3.scaleSequential(
+              (d) => d3.interpolateReds(logScale1(d))
+              )
+            */
+
+            const northbottomColorScale = d3.scaleThreshold()
+              .domain([3500, 4000, 5000, 26000])
+              .range(["#fc1400", "#ff4f40", "#fa877d", "#ffb6b0", "#fcdedc"])
+
+            /*
+            const logScale2 = d3.scaleThreshold()
+              .domain([800, 900, 2000, 4000])
+            const southbottomColorScale = d3.scaleSequential(
+              (d) => d3.interpolateReds(logScale2(d))
+              )
+            */
+
+            const southbottomColorScale = d3.scaleThreshold()
+              .domain([800, 900, 2000, 4000])
+              .range(["#fcdedc", "#ffb6b0", "#fa877d", "#ff4f40", "#fc1400"])
+
+            const bothbottomColorScale = d3.scaleThreshold()
+              .domain([4000, 4700, 5000, 26000])
+              .range(["#fc1400", "#ff4f40", "#fa877d", "#ffb6b0", "#fcdedc"])
+
+            const northtopColorScale = d3.scaleThreshold()
+              .domain([0])
+              .range(["#083069", "#083069", "#083069", "#083069", "#083069"])
+
+            const southtopColorScale = d3.scaleThreshold()
+              .domain([0, 30, 45, 72])
+              .range(["#083069", "#02429e", "#1563d4", "#4993fc", "#a8cbff"])
+
+            const bothtopColorScale = d3.scaleThreshold()
+              .domain([0])
+              .range(["#083069", "#083069", "#083069", "#083069", "#083069"])
+
+
+            if(viewStatus == 1){
+              casepm_data = map.north_data;
+              casepm_data.sort((a, b) => b[metric] - a[metric]);
+              bottomfive = casepm_data.slice(0,5);
+              topfive = casepm_data.slice(-5);
+              console.log(bottomfive);
+              console.log(topfive);
+              //console.log("topfive: " + topfive[metric]);
+
+            }
+
+            if(viewStatus == 2){
+              casepm_data = map.south_data;
+              casepm_data.sort((a, b) => b[metric] - a[metric]);
+              bottomfive = casepm_data.slice(0,5);
+              topfive = casepm_data.slice(-5);
+              //console.log("topfive: " + topfive[metric]);
+              console.log(bottomfive);
+              console.log(topfive);
+
+            }
+
+            if(viewStatus == 3){
+              casepm_data = map.both_data;
+              casepm_data.sort((a, b) => b[metric] - a[metric]);
+              bottomfive = casepm_data.slice(0,5);
+              topfive = casepm_data.slice(-5);
+              //console.log("topfive: " + topfive[metric]);
+              console.log(bottomfive);
+              console.log(topfive);
+
+            }
+
+          var geoPath = d3.geoPath().projection(aProjection);
+          
+          d3.select("svg").selectAll("path")
+            .data(map.countries)
+            .enter()
+            .append("path")
+              .attr("d", geoPath)
+              .attr("class", "countries")
+              .style("fill", "#D3D3D3") //make everything grey first
+              .style("fill", function(d) { 
+
+              var jsonCountryName = d.properties.name;
+
+                for (var i = 0; i < 5; i++) {
+                  var csvCountryName = topfive[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+                    if(viewStatus == 3){
+                      return bothtopColorScale(topfive[i][metric]);
+                    }
+
+                    if(viewStatus == 2){
+                      return southtopColorScale(topfive[i][metric]);
+                    }
+
+                    if(viewStatus == 1){
+                      return northtopColorScale(topfive[i][metric]);
+                    }
+                }
+              }
+
+              for (var i = 0; i < 5; i++) {
+                  var csvCountryName = bottomfive[i].Country;
+
+                  if (jsonCountryName == csvCountryName) {
+
+                    if(viewStatus == 3){
+                      return bothbottomColorScale(bottomfive[i][metric]);
+                    }
+
+                    if(viewStatus == 2){
+                      return southbottomColorScale(bottomfive[i][metric]);
+                    }
+
+                    if(viewStatus == 1){
+                      return northbottomColorScale(bottomfive[i][metric]);
+                    }
+                    
+                }
+              }
+        });
+
+        if(viewStatus == 2){
+          var legend1 = d3.legendColor()
+            .scale(southtopColorScale)
+            .ascending(false)
+            .cells([0, 29, 44, 71, 82])
+            .shapePadding(5)
+            .title("Lowest Cases Per Million: ")
+            .labels(["1: 0", "2: 29", "3: 44", "4: 71", "5: 82"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,170)")
+            .call(legend1);
+          
+
+
+          var legend2 = d3.legendColor()
+            .scale(southbottomColorScale)
+            .ascending(true)
+            .cells([791, 805, 1241, 3159, 4908])
+            .shapePadding(5)
+            .title("Highest Cases Per Million: ")
+            .labels(["5: 791", "4: 805", "3: 1241", "2: 3159", "1: 4908"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend2);
+
+          }
+
+
+          if(viewStatus == 3){
+          var legend1 = d3.legendColor()
+            .scale(bothtopColorScale)
+            .ascending(false)
+            .cells([0, 0, 0, 0, 0])
+            .shapePadding(5)
+            .title("Lowest Cases Per Million: ")
+            .labels(["1: 0", "2: 0", "3: 0", "4: 0", "5: 0"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,170)")
+            .call(legend1);
+          
+
+
+          var legend2 = d3.legendColor()
+            .scale(bothbottomColorScale)
+            .ascending(false)
+            .cells([65611, 25776, 4908, 4692, 3943])
+            .shapePadding(5)
+            .title("Highest Cases Per Million: ")
+            .labels(["1: 65611", "2: 25776", "3: 4908", "4: 4692", "5: 3943"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend2);
+
+          }
+
+
+          if(viewStatus == 1){
+          var legend1 = d3.legendColor()
+            .scale(northtopColorScale)
+            .ascending(false)
+            .cells([0, 0, 0, 0, 3])
+            .shapePadding(5)
+            .title("Lowest Cases Per Million: ")
+            .labels(["1: 0", "2: 0", "3: 0 ", "4: 0", "5: 3"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,170)")
+            .call(legend1);
+          
+
+
+          var legend2 = d3.legendColor()
+            .scale(northbottomColorScale)
+            .ascending(false)
+            .cells([65611, 25776, 4692, 3943, 3071])
+            .shapePadding(5)
+            .title("Highest Cases Per Million: ")
+            .labels(["1: 65611", "2: 25776", "3: 4692", "4: 3943", "5: 3071"])
+            .orient("vertical");
+
+
+          d3.select("svg").append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(0,11)")
+            .call(legend2);
+
+          }
+
+          }
+
+          }
+
+
+
+      function buttonUpdateNorth(){
+        viewStatus = 1;
+        createMap();
+        
+      }
+
+      function buttonUpdateSouth(){
+        viewStatus = 2;
+        createMap();
+        
+      }
+
+      function buttonUpdateBoth(){
+        viewStatus = 3;
+        createMap();
+        
+      }
+
+
+    </script>
+  </body>
+</html>
